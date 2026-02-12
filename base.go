@@ -2,7 +2,6 @@ package lua
 
 import (
 	"io"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -215,13 +214,13 @@ var baseLibrary = []RegistryFunction{
 				panic("unreachable")
 			}
 			if i > 1 {
-				os.Stdout.WriteString("\t")
+				l.global.stdout.WriteString("\t")
 			}
-			os.Stdout.WriteString(s)
+			l.global.stdout.WriteString(s)
 			l.Pop(1) // pop result
 		}
-		os.Stdout.WriteString("\n")
-		os.Stdout.Sync()
+		l.global.stdout.WriteString("\n")
+		l.global.stdout.Sync()
 		return 0
 	}},
 	{"rawequal", func(l *State) int {

@@ -48,8 +48,8 @@ var osLibrary = []RegistryFunction{
 
 		// Create the command.
 		cmd := exec.Command("sh", "-c", c)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdout = l.global.stdout
+		cmd.Stderr = l.global.stderr
 
 		// Run the command.
 		if err := cmd.Run(); err != nil {
