@@ -3,7 +3,6 @@ package lua
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -70,18 +69,25 @@ func ioWriter(l *State, name string) io.Writer {
 	return s.w
 }
 
+func openFile(l *State, name string, flag int, perm os.FileMode) (*os.File, error) {
+	if root := l.global.root; root != nil {
+		return root.OpenFile(name, flag, perm)
+	}
+	return os.OpenFile(name, flag, perm)
+}
+
 func forceOpen(l *State, name, mode string) {
 	s := newFile(l)
 	flags, err := flags(mode)
 	var f *os.File
 	if err == nil {
-		f, err = os.OpenFile(name, flags, 0666)
+		f, err = openFile(l,name,flags,0666)
 	}
 	if err != nil {
 		Errorf(l, fmt.Sprintf("cannot open file '%s' (%s)", name, err.Error()))
 	}
 	s.setFile(f)
-}
+	}
 
 func ioFileHelper(name, mode string) Function {
 	return func(l *State) int {
@@ -129,33 +135,104 @@ func write(l *State, w io.Writer, argIndex int) int {
 	return FileResult(l, err, "")
 }
 
-func readNumber(l *State, r io.Reader) (err error) {
-	var n float64
-	if _, err = fmt.Fscanf(r, "%f", &n); err == nil {
-		l.PushNumber(n)
-	} else {
-		l.PushNil()
+func readLineHelper(l *State, r io.Reader, chop bool) bool {
+	var buf []byte
+	b := make([]byte, 1)
+	for {
+		n, err := r.Read(b)
+		if n > 0 {
+			if b[0] == '\n' {
+				if !chop {
+					buf = append(buf, '\n')
+				}
+				l.PushString(string(buf))
+				return true
+			}
+			buf = append(buf, b[0])
+		}
+		if err != nil {
+			if len(buf) > 0 {
+				l.PushString(string(buf))
+				return true
+			}
+			l.PushNil()
+			return false
+		}
 	}
-	return
 }
+
+
+func readNumber(l *State, r io.Reader) bool {
+	var n float64
+	if _, err := fmt.Fscanf(r, "%f", &n); err == nil {
+		l.PushNumber(n)
+		return true
+	} 
+	l.PushNil()
+	return false
+}
+
+func readChars(l *State, r io.Reader, n int) bool {
+	buf := make([]byte, n)
+	nr, _ := io.ReadFull(r, buf)
+	if nr > 0 {
+		l.PushString(string(buf[:nr]))
+		return true
+	}
+	l.PushNil()
+	return false
+}
+
 
 func read(l *State, r io.Reader, argIndex int) int {
 	resultCount := 0
-	var err error
+	ok := true
 	if argCount := l.Top() - 1; argCount == 0 {
-		//		err = readLineHelper(l, r, true)
-		resultCount = argIndex + 1
+		ok = readLineHelper(l, r, true)
+		resultCount = 1
 	} else {
-		// TODO
+		n := argIndex
+		for rem := argCount; rem > 0 && ok; rem--{
+			if num, isNum := l.ToNumber(n); isNum{
+				count := int(num)
+				if count == 0{
+					b := make([]byte,1)
+					if _, err := r.Read(b); err != nil{
+						ok = false
+					} else {
+						l.PushString("")
+					}
+				} else {
+					ok = readChars(l,r,count)
+				}
+			} else {
+				p := CheckString(l,n)
+				if len(p) >= 2 && p[0] == '*' {
+					p = p[1:]
+				}
+				switch p[0]{
+				case 'n':
+					ok = readNumber(l,r)
+				case 'l':
+					ok = readLineHelper(l,r,true)
+				case 'L':
+					ok = readLineHelper(l,r,false)
+				case 'a':
+					d, _ := io.ReadAll(r)
+					l.PushString(string(d))
+				default:
+					ArgumentError(l,n,"invalid format: " + p)
+				}
+			}
+			n++
+			resultCount++
+		}
 	}
-	if err != nil {
-		return FileResult(l, err, "")
-	}
-	if err == io.EOF {
+	if !ok{
 		l.Pop(1)
 		l.PushNil()
 	}
-	return resultCount - argIndex
+	return resultCount
 }
 
 func readLine(l *State) int {
@@ -227,6 +304,20 @@ func flags(m string) (f int, err error) {
 	return
 }
 
+func createTempFile(l *State) (*os.File, error) {
+	if root := l.global.root; root != nil {
+		for i := 0; i < 100; i++ {
+			name := fmt.Sprintf(".lua_tmp_%d_%d", os.Getpid(), i)
+			f, err := root.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+			if err == nil {
+				return f, nil
+			}
+		}
+		return nil, fmt.Errorf("failed to create temp file")
+	}
+	return os.CreateTemp("", "")
+}
+
 var ioLibrary = []RegistryFunction{
 	{"close", close},
 	{"flush", func(l *State) int { return flush(l, ioWriter(l, output)) }},
@@ -252,7 +343,8 @@ var ioLibrary = []RegistryFunction{
 		flags, err := flags(OptString(l, 2, "r"))
 		s := newFile(l)
 		ArgumentCheck(l, err == nil, 2, "invalid mode")
-		f, err := os.OpenFile(name, flags, 0666)
+		var f *os.File
+		f, err = openFile(l,name,flags,0666)
 		if err == nil {
 			s.setFile(f)
 			return 1
@@ -264,7 +356,7 @@ var ioLibrary = []RegistryFunction{
 	{"read", func(l *State) int { return read(l, ioReader(l, input), 1) }},
 	{"tmpfile", func(l *State) int {
 		s := newFile(l)
-		f, err := ioutil.TempFile("", "")
+		f, err := createTempFile(l)
 		if err == nil {
 			s.setFile(f)
 			return 1
@@ -297,7 +389,7 @@ var fileHandleMethods = []RegistryFunction{
 		return read(l, s.r, 2)
 	}},
 	{"seek", func(l *State) int {
-		whence := []int{os.SEEK_SET, os.SEEK_CUR, os.SEEK_END}
+		whence := []int{io.SeekStart, io.SeekCurrent, io.SeekEnd}
 		s := checkOpen(l)
 		op := CheckOption(l, 2, "cur", []string{"set", "cur", "end"})
 		p3 := OptNumber(l, 3, 0)

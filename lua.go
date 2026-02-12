@@ -1543,19 +1543,29 @@ func (l *State) IsNoneOrNil(index int) bool { return l.TypeOf(index) <= TypeNil 
 // http://www.lua.org/manual/5.2/manual.html#lua_pushglobaltable
 func (l *State) PushGlobalTable() { l.RawGetInt(RegistryIndex, RegistryIndexGlobals) }
 
-// SetStdin sets standard in to an *os.File other than the default os.Stdin
-func (l *State) SetStdin(f *os.File) {
-	l.global.stdin = f
+// SetStdin sets standard in to an io.Reader other than the default os.Stdin
+func (l *State) SetStdin(r io.Reader) {
+	l.global.stdin = r
+	l.Field(RegistryIndex, input)
+	if s, ok := l.ToUserData(-1).(*stream); ok {
+		s.r = r
+	}
+	l.Pop(1)
 }
 
-// SetStdout sets standard in to an *os.File other than the default os.Stdout
-func (l *State) SetStdout(f *os.File) {
-	l.global.stdout = f
+// SetStdout sets standard in to an io.Writer other than the default os.Stdout
+func (l *State) SetStdout(w io.Writer) {
+	l.global.stdout = w
+	l.Field(RegistryIndex, output)
+	if s, ok := l.ToUserData(-1).(*stream); ok {
+		s.w = w
+	}
+	l.Pop(1)
 }
 
-// SetStderr sets standard in to an *os.File other than the default os.Stderr
-func (l *State) SetStderr(f *os.File) {
-	l.global.stderr = f
+// SetStderr sets standard in to an io.Writer other than the default os.Stderr
+func (l *State) SetStderr(w io.Writer) {
+	l.global.stderr = w
 }
 
 // SetRoot sets the root directory to *os.Root

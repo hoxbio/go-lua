@@ -206,7 +206,7 @@ func Where(l *State, level int) {
 // This function never returns. It is an idiom to use it in Go functions as:
 //   lua.Errorf(l, args)
 //   panic("unreachable")
-func Errorf(l *State, format string, a ...interface{}) {
+func Errorf(l *State, format string, a ...any) {
 	Where(l, 1)
 	l.PushFString(format, a...)
 	l.Concat(2)
@@ -266,7 +266,7 @@ func SetMetaTableNamed(l *State, name string) {
 	l.SetMetaTable(-2)
 }
 
-func TestUserData(l *State, index int, name string) interface{} {
+func TestUserData(l *State, index int, name string) any{
 	if d := l.ToUserData(index); d != nil {
 		if l.MetaTable(index) {
 			if MetaTableNamed(l, name); !l.RawEqual(-1, -2) {
@@ -282,7 +282,7 @@ func TestUserData(l *State, index int, name string) interface{} {
 // CheckUserData checks whether the function argument at index is a userdata
 // of the type name (see NewMetaTable) and returns the userdata (see
 // ToUserData).
-func CheckUserData(l *State, index int, name string) interface{} {
+func CheckUserData(l *State, index int, name string) any {
 	if d := TestUserData(l, index, name); d != nil {
 		return d
 	}
@@ -382,7 +382,7 @@ func SetFunctions(l *State, functions []RegistryFunction, upValueCount uint8) {
 	uvCount := int(upValueCount)
 	CheckStackWithMessage(l, uvCount, "too many upvalues")
 	for _, r := range functions { // fill the table with given functions
-		for i := 0; i < uvCount; i++ { // copy upvalues to the top
+		for range(uvCount) { // copy upvalues to the top
 			l.PushValue(-uvCount)
 		}
 		l.PushGoClosure(r.Function, upValueCount) // closure with those upvalues
@@ -404,7 +404,7 @@ func CheckStackWithMessage(l *State, space int, message string) {
 
 func CheckOption(l *State, index int, def string, list []string) int {
 	var name string
-	if def == "" {
+	if def != "" {
 		name = OptString(l, index, def)
 	} else {
 		name = CheckString(l, index)
@@ -483,6 +483,7 @@ func skipComment(r *bufio.Reader) (bool, error) {
 
 func LoadFile(l *State, fileName, mode string) error {
 	var f *os.File
+	var r io.Reader
 	fileNameIndex := l.Top() + 1
 	fileError := func(what string) error {
 		fileName, _ := l.ToString(fileNameIndex)
@@ -492,24 +493,25 @@ func LoadFile(l *State, fileName, mode string) error {
 	}
 	if fileName == "" {
 		l.PushString("=stdin")
-		f = os.Stdin
+		r = l.global.stdin
 	} else {
 		l.PushString("@" + fileName)
 		var err error
-		if f, err = os.Open(fileName); err != nil {
+		if f, err = openFile(l, fileName, os.O_RDONLY, 0); err != nil {
 			return fileError("open")
 		}
+		r = f
 	}
-	r := bufio.NewReader(f)
-	if skipped, err := skipComment(r); err != nil {
+	br := bufio.NewReader(r)
+	if skipped, err := skipComment(br); err != nil {
 		l.SetTop(fileNameIndex)
 		return fileError("read")
 	} else if skipped {
-		r = bufio.NewReader(io.MultiReader(strings.NewReader("\n"), r))
+		br = bufio.NewReader(io.MultiReader(strings.NewReader("\n"), br))
 	}
 	s, _ := l.ToString(-1)
-	err := l.Load(r, s, mode)
-	if f != os.Stdin {
+	err := l.Load(br, s, mode)
+	if f != nil {
 		_ = f.Close()
 	}
 	switch err {
