@@ -214,13 +214,12 @@ var baseLibrary = []RegistryFunction{
 				panic("unreachable")
 			}
 			if i > 1 {
-				l.global.stdout.WriteString("\t")
+				io.WriteString(l.global.stdout,"\t")
 			}
-			l.global.stdout.WriteString(s)
+			io.WriteString(l.global.stdout,s)
 			l.Pop(1) // pop result
 		}
-		l.global.stdout.WriteString("\n")
-		l.global.stdout.Sync()
+		io.WriteString(l.global.stdout,"\n")
 		return 0
 	}},
 	{"rawequal", func(l *State) int {
