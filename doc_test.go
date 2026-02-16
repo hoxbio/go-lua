@@ -1,7 +1,7 @@
 package lua_test
 
 import (
-	lua "github.com/Shopify/go-lua"
+	lua "github.com/hoxbio/go-lua"
 )
 
 // This example receives a variable number of numerical arguments and returns their average and sum.

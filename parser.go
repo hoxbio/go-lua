@@ -12,6 +12,8 @@ type parser struct {
 	function                   *function
 	activeVariables            []int
 	pendingGotos, activeLabels []label
+	stmtLines []int
+	depth int
 }
 
 func (p *parser) checkCondition(c bool, message string) {
@@ -294,6 +296,8 @@ func (p *parser) blockFollow(withUntil bool) bool {
 }
 
 func (p *parser) statementList() {
+	p.depth++
+	defer func(){p.depth--}()
 	for !p.blockFollow(true) {
 		if p.t == tkReturn {
 			p.statement()
@@ -603,6 +607,9 @@ func (p *parser) returnStatement() {
 
 func (p *parser) statement() {
 	line := p.lineNumber
+	if p.depth == 1 && p.stmtLines != nil && p.t != ';'{
+		p.stmtLines = append(p.stmtLines, line)
+	}
 	p.enterLevel()
 	switch p.t {
 	case ';':
@@ -650,6 +657,38 @@ func (p *parser) mainFunction() {
 	p.statementList()
 	p.check(tkEOS)
 	p.function = p.function.CloseMainFunction()
+}
+
+func (l *State) StatementLines(code string) ([]int, error) {
+	r := bufio.NewReader(strings.NewReader(code))
+	p := &parser{
+		scanner: scanner{r: r, lineNumber: 1, lastLine: 1, lookAheadToken: token{t: tkEOS}, l: l, source: "=input"},
+		stmtLines: []int{},
+	}
+	f := &function{
+		f:              &prototype{source: "=input", maxStackSize: 2, isVarArg: true},
+		constantLookup: make(map[value]int),
+		p:              p,
+		jumpPC:         noJump,
+	}
+	p.function = f
+
+	err := l.protectedCall(func() {
+		p.function.OpenMainFunction()
+		p.next()
+		p.statementList()
+		p.check(tkEOS)
+		p.function.CloseMainFunction()
+	}, l.top, l.errorFunction)
+
+	if err != nil {
+		msg, _ := l.ToString(-1)
+		l.Pop(1)
+		return p.stmtLines, fmt.Errorf("%s", msg)
+	}
+	l.Pop(1) // pop compiled closure
+
+	return p.stmtLines, nil
 }
 
 func (l *State) parse(r io.ByteReader, name string) *luaClosure {

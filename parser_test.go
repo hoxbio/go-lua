@@ -143,3 +143,277 @@ func comparePrototypes(t *testing.T, a, b *prototype) {
 		comparePrototypes(t, &a.prototypes[i], &b.prototypes[i])
 	}
 }
+
+func TestStatementLines(t *testing.T) {
+	tests := []struct {
+		name  string
+		code  string
+		lines []int
+	}{
+		{
+			name:  "single assignment",
+			code:  `x = 10`,
+			lines: []int{1},
+		},
+		{
+			name:  "two assignments",
+			code:  "x = 10\ny = 20",
+			lines: []int{1, 2},
+		},
+		{
+			name:  "three assignments",
+			code:  "x = 10\ny = 20\nz = x + y",
+			lines: []int{1, 2, 3},
+		},
+		{
+			name:  "function call",
+			code:  "x = 10\nprint(x)",
+			lines: []int{1, 2},
+		},
+		{
+			name:  "multiline function",
+			code:  "function greet(name)\n  return \"Hello, \" .. name\nend",
+			lines: []int{1},
+		},
+		{
+			name:  "function then call",
+			code:  "function greet(name)\n  return \"Hello, \" .. name\nend\ngreet(\"World\")",
+			lines: []int{1, 4},
+		},
+		{
+			name:  "if block",
+			code:  "x = 10\nif x > 5 then\n  print(x)\nend\ny = 20",
+			lines: []int{1, 2, 5},
+		},
+		{
+			name:  "if else block",
+			code:  "if true then\n  x = 1\nelse\n  x = 2\nend",
+			lines: []int{1},
+		},
+		{
+			name:  "for numeric",
+			code:  "for i = 1, 10 do\n  print(i)\nend",
+			lines: []int{1},
+		},
+		{
+			name:  "for in",
+			code:  "t = {1,2,3}\nfor k, v in pairs(t) do\n  print(k, v)\nend",
+			lines: []int{1, 2},
+		},
+		{
+			name:  "while loop",
+			code:  "x = 0\nwhile x < 10 do\n  x = x + 1\nend\nprint(x)",
+			lines: []int{1, 2, 5},
+		},
+		{
+			name:  "repeat until",
+			code:  "x = 0\nrepeat\n  x = x + 1\nuntil x > 10",
+			lines: []int{1, 2},
+		},
+		{
+			name:  "local variable",
+			code:  "local x = 10\nlocal y = 20\nprint(x + y)",
+			lines: []int{1, 2, 3},
+		},
+		{
+			name:  "local function",
+			code:  "local function foo()\n  return 42\nend\nfoo()",
+			lines: []int{1, 4},
+		},
+		{
+			name:  "nested blocks",
+			code:  "function outer()\n  function inner()\n    return 1\n  end\n  return inner()\nend\nouter()",
+			lines: []int{1, 7},
+		},
+		{
+			name:  "semicolons",
+			code:  "x = 1; y = 2; z = 3",
+			lines: []int{1, 1, 1},
+		},
+		{
+			name:  "return statement",
+			code:  "x = 10\nreturn x",
+			lines: []int{1, 2},
+		},
+		{
+			name:  "do block",
+			code:  "x = 1\ndo\n  local y = 2\n  x = y\nend\nprint(x)",
+			lines: []int{1, 2, 6},
+		},
+		{
+			name:  "empty input",
+			code:  "",
+			lines: []int{},
+		},
+		{
+			name: "complex program",
+			code: `x = 10
+y = 20
+function add(a, b)
+  return a + b
+end
+result = add(x, y)
+if result > 25 then
+  print("big")
+else
+  print("small")
+end
+print("done")`,
+			lines: []int{1, 2, 3, 6, 7, 12},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := NewState()
+			OpenLibraries(l)
+
+			got, err := l.StatementLines(tt.code)
+			if err != nil {
+				t.Fatalf("StatementLines(%q) error: %v", tt.code, err)
+			}
+			if len(got) == 0 {
+				got = []int{}
+			}
+			if !reflect.DeepEqual(got, tt.lines) {
+				t.Errorf("StatementLines(%q)\n  got  %v\n  want %v", tt.code, got, tt.lines)
+			}
+		})
+	}
+}
+
+func TestStatementLinesSyntaxError(t *testing.T) {
+	l := NewState()
+	OpenLibraries(l)
+
+	_, err := l.StatementLines("if then end end")
+	if err == nil {
+		t.Error("expected syntax error, got nil")
+	}
+}
+
+
+func BenchmarkStatementLines(b *testing.B) {
+	benchmarks := []struct {
+		name string
+		code string
+	}{
+		{
+			name: "5_simple",
+			code: "x = 10\ny = 20\nz = x + y\nprint(z)\nreturn z",
+		},
+		{
+			name: "10_mixed",
+			code: `x = 10
+y = 20
+function add(a, b)
+  return a + b
+end
+result = add(x, y)
+if result > 25 then
+  print("big")
+else
+  print("small")
+end
+print("done")`,
+		},
+		{
+			name: "25_lines",
+			code: `local x = 0
+local y = 0
+local t = {}
+for i = 1, 10 do
+  t[i] = i * i
+end
+function sum(tbl)
+  local s = 0
+  for _, v in pairs(tbl) do
+    s = s + v
+  end
+  return s
+end
+x = sum(t)
+if x > 100 then
+  y = x - 100
+elseif x > 50 then
+  y = x - 50
+else
+  y = x
+end
+while y > 0 do
+  y = y - 1
+end
+print(x, y)
+return x`,
+		},
+		{
+			name: "50_lines",
+			code: `local a = 1
+local b = 2
+local c = 3
+local d = 4
+local e = 5
+local t = {}
+for i = 1, 20 do
+  t[i] = i
+end
+function map(tbl, f)
+  local r = {}
+  for k, v in pairs(tbl) do
+    r[k] = f(v)
+  end
+  return r
+end
+function filter(tbl, f)
+  local r = {}
+  for _, v in pairs(tbl) do
+    if f(v) then
+      r[#r+1] = v
+    end
+  end
+  return r
+end
+function reduce(tbl, f, init)
+  local acc = init
+  for _, v in pairs(tbl) do
+    acc = f(acc, v)
+  end
+  return acc
+end
+local doubled = map(t, function(x) return x * 2 end)
+local evens = filter(doubled, function(x) return x % 2 == 0 end)
+local total = reduce(evens, function(a, b) return a + b end, 0)
+if total > 100 then
+  print("large")
+elseif total > 50 then
+  print("medium")
+else
+  print("small")
+end
+repeat
+  total = total - 1
+until total <= 0
+while a < 100 do
+  a = a + b
+  b = b + 1
+end
+c = a + b
+d = c * 2
+e = d - 1
+print(a, b, c, d, e, total)
+return total`,
+		},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			l := NewState()
+			OpenLibraries(l)
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, _ = l.StatementLines(bm.code)
+			}
+		})
+	}
+}
