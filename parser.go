@@ -679,7 +679,7 @@ func (l *State) StatementLines(code string) ([]int, error) {
 		p.statementList()
 		p.check(tkEOS)
 		p.function.CloseMainFunction()
-	}, l.top, l.errorFunction)
+	}, l.top, 0)
 
 	if err != nil {
 		msg, _ := l.ToString(-1)

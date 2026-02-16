@@ -292,6 +292,82 @@ func TestStatementLinesSyntaxError(t *testing.T) {
 	}
 }
 
+func TestStatementLinesSyntaxErrorNoPanic(t *testing.T) {
+	// This test specifically checks that syntax errors don't cause panics
+	// due to uninitialized errorFunction. Before the fix, this would panic
+	// with "index out of range [-4]" in setErrorObject.
+	tests := []struct {
+		name          string
+		code          string
+		errorContains string
+	}{
+		{
+			name:          "standalone expression",
+			code:          "x = 10\ny = 20\nx + y",
+			errorContains: "syntax error",
+		},
+		{
+			name:          "standalone expression with function",
+			code:          "x = 10\ny = 20\nx + y\n\nfunction greet(name)\n  return \"Hello, \" .. name\nend\n\ngreet(\"World\")",
+			errorContains: "syntax error",
+		},
+		{
+			name:          "malformed if - missing condition",
+			code:          "if then x = 1 end",
+			errorContains: "expected",
+		},
+		{
+			name:          "incomplete function",
+			code:          "function foo()\n  x = 1",
+			errorContains: "'end' expected",
+		},
+		{
+			name:          "invalid assignment target",
+			code:          "(x + y) = 10",
+			errorContains: "syntax error",
+		},
+		{
+			name:          "unclosed parenthesis",
+			code:          "x = (10 + 20",
+			errorContains: "expected",
+		},
+		{
+			name:          "unexpected symbol",
+			code:          "x = 10\n@@@",
+			errorContains: "unexpected symbol",
+		},
+		{
+			name:          "unfinished string",
+			code:          "x = \"hello\ny = 20",
+			errorContains: "unfinished string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This test ensures we get a proper error, not a panic
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("StatementLines panicked: %v", r)
+				}
+			}()
+
+			l := NewState()
+			OpenLibraries(l)
+			
+			lines, err := l.StatementLines(tt.code)
+			
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil (lines: %v)", tt.errorContains, lines)
+			}
+			
+			errMsg := err.Error()
+			if !strings.Contains(errMsg, tt.errorContains) {
+				t.Errorf("expected error containing %q, got %q", tt.errorContains, errMsg)
+			}
+		})
+	}
+}
 
 func BenchmarkStatementLines(b *testing.B) {
 	benchmarks := []struct {
