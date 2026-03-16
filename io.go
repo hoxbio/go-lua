@@ -17,7 +17,7 @@ type stream struct {
 	close Function
 }
 
-func (s *stream) setFile(f *os.File) {
+func (s *stream) setFile(f File) {
 	s.r = f
 	s.w = f
 	s.c = f
@@ -69,7 +69,7 @@ func ioWriter(l *State, name string) io.Writer {
 	return s.w
 }
 
-func openFile(l *State, name string, flag int, perm os.FileMode) (*os.File, error) {
+func openFile(l *State, name string, flag int, perm os.FileMode) (File, error) {
 	if root := l.global.root; root != nil {
 		return root.OpenFile(name, flag, perm)
 	}
@@ -79,9 +79,9 @@ func openFile(l *State, name string, flag int, perm os.FileMode) (*os.File, erro
 func forceOpen(l *State, name, mode string) {
 	s := newFile(l)
 	flags, err := flags(mode)
-	var f *os.File
+	var f File
 	if err == nil {
-		f, err = openFile(l,name,flags,0666)
+		f, err = openFile(l, name, flags, 0666)
 	}
 	if err != nil {
 		Errorf(l, fmt.Sprintf("cannot open file '%s' (%s)", name, err.Error()))
@@ -275,7 +275,7 @@ func lines(l *State, shouldClose bool) {
 }
 
 func flush(l *State, w io.Writer) int {
-	if f, ok := w.(*os.File); ok {
+	if f, ok := w.(interface{ Sync() error }); ok {
 		return FileResult(l, f.Sync(), "")
 	}
 	return FileResult(l, nil, "")
@@ -304,7 +304,7 @@ func flags(m string) (f int, err error) {
 	return
 }
 
-func createTempFile(l *State) (*os.File, error) {
+func createTempFile(l *State) (File, error) {
 	if root := l.global.root; root != nil {
 		for i := 0; i < 100; i++ {
 			name := fmt.Sprintf(".lua_tmp_%d_%d", os.Getpid(), i)
@@ -343,8 +343,8 @@ var ioLibrary = []RegistryFunction{
 		flags, err := flags(OptString(l, 2, "r"))
 		s := newFile(l)
 		ArgumentCheck(l, err == nil, 2, "invalid mode")
-		var f *os.File
-		f, err = openFile(l,name,flags,0666)
+		var f File
+		f, err = openFile(l, name, flags, 0666)
 		if err == nil {
 			s.setFile(f)
 			return 1

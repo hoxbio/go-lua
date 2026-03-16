@@ -9,6 +9,31 @@ import (
 	"strings"
 )
 
+// File is the interface for file operations, satisfied by *os.File.
+type File interface {
+	io.Reader
+	io.Writer
+	io.Closer
+	io.Seeker
+	Sync() error
+}
+
+// Root is the interface for filesystem access. It is satisfied by *OSRoot
+// but can be implemented by any pseudo-filesystem (e.g. a database-backed FS).
+type Root interface {
+	OpenFile(name string, flag int, perm os.FileMode) (File, error)
+}
+
+// OSRoot wraps *os.Root to implement Root.
+type OSRoot struct{ r *os.Root }
+
+// NewOSRoot wraps an *os.Root so it satisfies the Root interface.
+func NewOSRoot(r *os.Root) *OSRoot { return &OSRoot{r} }
+
+func (o *OSRoot) OpenFile(name string, flag int, perm os.FileMode) (File, error) {
+	return o.r.OpenFile(name, flag, perm)
+}
+
 // MultipleReturns is the argument for argCount or resultCount in ProtectedCall and Call.
 const MultipleReturns = -1
 
@@ -250,7 +275,7 @@ type globalState struct {
 	panicFunction      Function // to be called in unprotected errors
 	version            *float64 // pointer to version number
 	memoryErrorMessage string
-	root               *os.Root
+	root               Root
 	stdin              io.Reader
 	stdout             io.Writer
 	stderr             io.Writer
@@ -1568,7 +1593,7 @@ func (l *State) SetStderr(w io.Writer) {
 	l.global.stderr = w
 }
 
-// SetRoot sets the root directory to *os.Root
-func (l *State) SetRoot(r *os.Root) {
+// SetRoot sets the filesystem root. Pass a *lua.OSRoot to use a real *os.Root.
+func (l *State) SetRoot(r Root) {
 	l.global.root = r
 }

@@ -82,7 +82,7 @@ func TestSetRootOpenFileInRoot(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `
@@ -112,7 +112,7 @@ func TestSetRootBlocksParentTraversal(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `
@@ -134,7 +134,7 @@ func TestSetRootBlocksAbsolutePath(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `
@@ -158,7 +158,7 @@ func TestSetRootAllowsSubdirectories(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `
@@ -183,7 +183,7 @@ func TestSetRootWriteFile(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `
@@ -215,7 +215,7 @@ func TestSetRootWriteBlocksTraversal(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `
@@ -238,7 +238,7 @@ func TestSetRootLoadFile(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `
@@ -263,7 +263,7 @@ func TestSetRootDoFile(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `
@@ -310,7 +310,7 @@ func TestSetRootLines(t *testing.T) {
 	defer root.Close()
 
 	l := NewState()
-	l.SetRoot(root)
+	l.SetRoot(NewOSRoot(root))
 	OpenLibraries(l)
 
 	err = DoString(l, `

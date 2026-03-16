@@ -482,7 +482,7 @@ func skipComment(r *bufio.Reader) (bool, error) {
 }
 
 func LoadFile(l *State, fileName, mode string) error {
-	var f *os.File
+	var f File
 	var r io.Reader
 	fileNameIndex := l.Top() + 1
 	fileError := func(what string) error {
