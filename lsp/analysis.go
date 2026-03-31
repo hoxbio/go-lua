@@ -1,4 +1,4 @@
-package main
+package lsp
 
 import "sort"
 
@@ -30,8 +30,8 @@ type FuncSig struct {
 type Symbol struct {
 	Name    string
 	Kind    SymbolKind
-	Def     Span     // span of the defining occurrence
-	Refs    []Span   // all reference spans (including definition)
+	Def     Span   // span of the defining occurrence
+	Refs    []Span // all reference spans (including definition)
 	Scope   *Scope
 	FuncSig *FuncSig // non-nil when the symbol resolves to a function
 }

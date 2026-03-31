@@ -1,4 +1,4 @@
-package main
+package lsp
 
 import "testing"
 
@@ -13,7 +13,6 @@ func analyzeSource(t *testing.T, src string) (*Block, *Analysis) {
 	}
 	return block, Analyze(block)
 }
-
 
 // ---- basic locals ----------------------------------------------------------
 

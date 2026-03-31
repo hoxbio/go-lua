@@ -1,4 +1,4 @@
-package main
+package lsp
 
 import (
 	"testing"
@@ -304,7 +304,7 @@ func TestScanPositionFirstToken(t *testing.T) {
 
 func TestScanPositionSecondLine(t *testing.T) {
 	s := NewScanner("x\ny")
-	s.Next() // x
+	s.Next()        // x
 	tok := s.Next() // y
 	if tok.Sp.From.Line != 1 {
 		t.Errorf("y should be on line 1, got line %d", tok.Sp.From.Line)
@@ -317,7 +317,7 @@ func TestScanPositionSecondLine(t *testing.T) {
 func TestScanPositionOffset(t *testing.T) {
 	// "ab cd" — 'cd' starts at offset 3
 	s := NewScanner("ab cd")
-	s.Next() // ab
+	s.Next()        // ab
 	tok := s.Next() // cd
 	if tok.Sp.From.Offset != 3 {
 		t.Errorf("cd offset = %d, want 3", tok.Sp.From.Offset)

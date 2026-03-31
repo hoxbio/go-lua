@@ -1,4 +1,4 @@
-package main
+package lsp
 
 // Shared test helpers used by multiple _test.go files.
 

@@ -1,9 +1,10 @@
-package main
+package lsp
 
 import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -30,6 +31,16 @@ type Server struct {
 	in   *bufio.Reader
 	out  *bufio.Writer
 	mu   sync.Mutex
+}
+
+// NewServer creates an LSP server that reads requests from in and writes
+// responses to out using standard JSON-RPC framing.
+func NewServer(in io.Reader, out io.Writer) *Server {
+	return &Server{
+		docs: make(map[string]*Document),
+		in:   bufio.NewReader(in),
+		out:  bufio.NewWriter(out),
+	}
 }
 
 // ---------------------------------------------------------------------------

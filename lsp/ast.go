@@ -1,4 +1,4 @@
-package main
+package lsp
 
 // Pos represents a position in source code (0-based line, 0-based col, byte offset)
 type Pos struct {
@@ -93,8 +93,8 @@ type AssignStmt struct {
 	Sp      Span
 }
 
-func (n *AssignStmt) Span() Span    { return n.Sp }
-func (n *AssignStmt) stmtMarker()   {}
+func (n *AssignStmt) Span() Span  { return n.Sp }
+func (n *AssignStmt) stmtMarker() {}
 
 // LocalStmt: local names [= values]
 type LocalStmt struct {
@@ -234,8 +234,8 @@ type NilExpr struct {
 	Sp Span
 }
 
-func (n *NilExpr) Span() Span    { return n.Sp }
-func (n *NilExpr) exprMarker()   {}
+func (n *NilExpr) Span() Span  { return n.Sp }
+func (n *NilExpr) exprMarker() {}
 
 // TrueExpr: true
 type TrueExpr struct {

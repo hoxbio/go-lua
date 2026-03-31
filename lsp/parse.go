@@ -1,4 +1,4 @@
-package main
+package lsp
 
 import (
 	"fmt"
@@ -442,21 +442,21 @@ type opInfo struct {
 }
 
 var binOps = map[int]opInfo{
-	TokOr:    {1, 1},
-	TokAnd:   {2, 2},
-	int('<'): {3, 3},
-	int('>'): {3, 3},
-	TokLE:    {3, 3},
-	TokGE:    {3, 3},
-	TokNE:    {3, 3},
-	TokEq:    {3, 3},
+	TokOr:     {1, 1},
+	TokAnd:    {2, 2},
+	int('<'):  {3, 3},
+	int('>'):  {3, 3},
+	TokLE:     {3, 3},
+	TokGE:     {3, 3},
+	TokNE:     {3, 3},
+	TokEq:     {3, 3},
 	TokConcat: {4, 3}, // right-assoc
-	int('+'): {5, 5},
-	int('-'): {5, 5},
-	int('*'): {6, 6},
-	int('/'): {6, 6},
-	int('%'): {6, 6},
-	int('^'): {8, 7}, // right-assoc
+	int('+'):  {5, 5},
+	int('-'):  {5, 5},
+	int('*'):  {6, 6},
+	int('/'):  {6, 6},
+	int('%'):  {6, 6},
+	int('^'):  {8, 7}, // right-assoc
 }
 
 // parseExpr parses an expression.
@@ -787,17 +787,17 @@ func getStmtSpan(s Stmt) Span {
 }
 
 // stmtSpan implementations satisfy the Stmt interface requirement.
-func (s *AssignStmt) stmtSpan() Span  { return s.Sp }
-func (s *LocalStmt) stmtSpan() Span   { return s.Sp }
-func (s *DoStmt) stmtSpan() Span      { return s.Sp }
-func (s *WhileStmt) stmtSpan() Span   { return s.Sp }
-func (s *RepeatStmt) stmtSpan() Span  { return s.Sp }
-func (s *IfStmt) stmtSpan() Span      { return s.Sp }
-func (s *ForNumStmt) stmtSpan() Span  { return s.Sp }
-func (s *ForInStmt) stmtSpan() Span   { return s.Sp }
-func (s *FuncStmt) stmtSpan() Span    { return s.Sp }
-func (s *ReturnStmt) stmtSpan() Span  { return s.Sp }
-func (s *BreakStmt) stmtSpan() Span   { return s.Sp }
-func (s *GotoStmt) stmtSpan() Span    { return s.Sp }
-func (s *LabelStmt) stmtSpan() Span   { return s.Sp }
-func (s *ExprStmt) stmtSpan() Span    { return s.Sp }
+func (s *AssignStmt) stmtSpan() Span { return s.Sp }
+func (s *LocalStmt) stmtSpan() Span  { return s.Sp }
+func (s *DoStmt) stmtSpan() Span     { return s.Sp }
+func (s *WhileStmt) stmtSpan() Span  { return s.Sp }
+func (s *RepeatStmt) stmtSpan() Span { return s.Sp }
+func (s *IfStmt) stmtSpan() Span     { return s.Sp }
+func (s *ForNumStmt) stmtSpan() Span { return s.Sp }
+func (s *ForInStmt) stmtSpan() Span  { return s.Sp }
+func (s *FuncStmt) stmtSpan() Span   { return s.Sp }
+func (s *ReturnStmt) stmtSpan() Span { return s.Sp }
+func (s *BreakStmt) stmtSpan() Span  { return s.Sp }
+func (s *GotoStmt) stmtSpan() Span   { return s.Sp }
+func (s *LabelStmt) stmtSpan() Span  { return s.Sp }
+func (s *ExprStmt) stmtSpan() Span   { return s.Sp }

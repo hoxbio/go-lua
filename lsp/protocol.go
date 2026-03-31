@@ -1,4 +1,4 @@
-package main
+package lsp
 
 import "encoding/json"
 
@@ -267,7 +267,7 @@ type Hover struct {
 
 // MarkupContent represents human-readable content with a kind (plaintext or markdown).
 type MarkupContent struct {
-	Kind  string `json:"kind"`  // "plaintext" | "markdown"
+	Kind  string `json:"kind"` // "plaintext" | "markdown"
 	Value string `json:"value"`
 }
 
@@ -290,8 +290,8 @@ type SignatureHelp struct {
 
 // SignatureInformation represents the signature of a callable.
 type SignatureInformation struct {
-	Label         string               `json:"label"`
-	Documentation interface{}          `json:"documentation,omitempty"` // string | MarkupContent
+	Label         string                 `json:"label"`
+	Documentation interface{}            `json:"documentation,omitempty"` // string | MarkupContent
 	Parameters    []ParameterInformation `json:"parameters,omitempty"`
 }
 

@@ -1,4 +1,4 @@
-package main
+package lsp
 
 import (
 	"fmt"
@@ -15,15 +15,15 @@ const (
 
 const (
 	TokName   = 256 + iota
-	TokNumber  // numeric literal
-	TokString  // string literal
-	TokConcat  // ..
-	TokDots    // ...
-	TokEq      // ==
-	TokGE      // >=
-	TokLE      // <=
-	TokNE      // ~=
-	TokDColon  // ::
+	TokNumber // numeric literal
+	TokString // string literal
+	TokConcat // ..
+	TokDots   // ...
+	TokEq     // ==
+	TokGE     // >=
+	TokLE     // <=
+	TokNE     // ~=
+	TokDColon // ::
 	// Keywords
 	TokAnd
 	TokBreak

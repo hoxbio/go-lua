@@ -1,4 +1,4 @@
-package main
+package lsp
 
 import (
 	"bufio"
@@ -578,5 +578,3 @@ func TestFormatPreservesStrings(t *testing.T) {
 }
 
 // ---- helpers used in tests -----------------------------------------------
-
-
