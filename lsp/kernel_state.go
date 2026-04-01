@@ -457,7 +457,15 @@ func (k *KernelState) executeFuncStmt(stmt *FuncStmt, env *Env) error {
 }
 
 func (k *KernelState) executeReturn(stmt *ReturnStmt, env *Env, returnLabels []string) error {
-	return &ReturnError{Values: make([]interface{}, len(stmt.Values))}
+	values := make([]interface{}, len(stmt.Values))
+	for i, v := range stmt.Values {
+		val, err := k.evalExpr(v, env)
+		if err != nil {
+			return err
+		}
+		values[i] = val
+	}
+	return &ReturnError{Values: values}
 }
 
 type ReturnError struct {
@@ -822,6 +830,8 @@ func inferKind(val interface{}) ValueKind {
 	case *EnvTable:
 		return ValueTable
 	case *EnvFunction:
+		return ValueFunction
+	case *EnvBuiltin:
 		return ValueFunction
 	}
 	return ValueUnknown

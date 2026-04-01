@@ -460,6 +460,15 @@ func (s *Server) handleCompletion(doc *Document, pos Position) *CompletionList {
 	}
 
 	offset := posToOffset(doc.Text, pos)
+
+	// Member access completion: triggered by '.' or ':'.
+	// We only do a direct env lookup — no expression evaluation.
+	if doc.Kernel != nil {
+		if table, isColon, ok := memberTableAtOffset(doc.Kernel, doc.Text, offset); ok {
+			return memberCompletionList(table, isColon)
+		}
+	}
+
 	scope := doc.Analysis.ScopeAt(offset)
 
 	seen := make(map[string]bool)
@@ -559,8 +568,126 @@ func getKernelScopeAtOffset(kernel *KernelState, offset int) *Env {
 	return nil
 }
 
-// getKernelValueKind converts ValueKind to CompletionItemKind
-func getKernelValueKind(kind ValueKind) CompletionItemKind {
+// isIdentChar returns true for characters valid in a Lua identifier.
+func isIdentChar(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9') || c == '_'
+}
+
+// memberTableAtOffset scans backwards from offset to detect "name." or "name:"
+// patterns and looks up the name in the kernel env (no expression evaluation).
+// Returns the resolved table, whether the trigger was ':', and whether a table was found.
+func memberTableAtOffset(kernel *KernelState, text string, offset int) (*EnvTable, bool, bool) {
+	i := offset - 1
+	// Skip any partial identifier the user has typed after the trigger (e.g. "foo.ba|")
+	for i >= 0 && isIdentChar(text[i]) {
+		i--
+	}
+	if i < 0 {
+		return nil, false, false
+	}
+	trigger := text[i]
+	if trigger != '.' && trigger != ':' {
+		return nil, false, false
+	}
+	isColon := trigger == ':'
+	i-- // step past the trigger character
+
+	// Collect the identifier immediately before the trigger — simple name only,
+	// no chained evaluation so we never re-execute user code.
+	end := i
+	for i >= 0 && isIdentChar(text[i]) {
+		i--
+	}
+	name := text[i+1 : end+1]
+	if name == "" {
+		return nil, isColon, false
+	}
+
+	val, ok := kernel.Env.Lookup(name)
+	if !ok || val == nil {
+		return nil, isColon, false
+	}
+	table, ok := val.Value.(*EnvTable)
+	if !ok {
+		return nil, isColon, false
+	}
+	return table, isColon, true
+}
+
+// memberCompletionList builds a CompletionList from an EnvTable's fields.
+// When isColon is true (method call syntax) only function-valued fields are shown.
+func memberCompletionList(table *EnvTable, isColon bool) *CompletionList {
+	var items []CompletionItem
+	for _, rawKey := range table.keys {
+		key, ok := rawKey.(string)
+		if !ok {
+			continue // skip integer-keyed array slots
+		}
+		val := table.elements[key]
+
+		var kind int
+		var detail string
+		switch v := val.(type) {
+		case *EnvFunction:
+			kind = CIKMethod
+			detail = buildEnvFuncDetail(key, v, isColon)
+		case *EnvBuiltin:
+			kind = CIKMethod
+			detail = "function " + key + "(...)"
+		case *EnvTable:
+			if isColon {
+				continue // colon syntax only makes sense for callables
+			}
+			kind = CIKClass
+			detail = "table"
+		default:
+			if isColon {
+				continue
+			}
+			kind = CIKField
+			detail = getRuntimeKindName(inferKind(val))
+		}
+
+		items = append(items, CompletionItem{
+			Label:  key,
+			Kind:   kind,
+			Detail: detail,
+		})
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Label < items[j].Label })
+	return &CompletionList{IsIncomplete: false, Items: items}
+}
+
+// buildEnvFuncDetail formats a signature string for an EnvFunction.
+// When isColon is true the implicit 'self' first parameter is omitted.
+func buildEnvFuncDetail(name string, fn *EnvFunction, isColon bool) string {
+	var sb strings.Builder
+	sb.WriteString("function ")
+	sb.WriteString(name)
+	sb.WriteByte('(')
+	start := 0
+	if isColon && len(fn.Params) > 0 && fn.Params[0].Name == "self" {
+		start = 1
+	}
+	for i := start; i < len(fn.Params); i++ {
+		if i > start {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(fn.Params[i].Name)
+	}
+	if fn.HasVarArg {
+		if len(fn.Params) > start {
+			sb.WriteString(", ")
+		}
+		sb.WriteString("...")
+	}
+	sb.WriteByte(')')
+	return sb.String()
+}
+
+// getKernelValueKind converts ValueKind to a completion item kind constant.
+func getKernelValueKind(kind ValueKind) int {
 	switch kind {
 	case ValueFunction:
 		return CIKFunction
@@ -586,6 +713,8 @@ func getKernelValueDetail(val interface{}) string {
 	case *EnvTable:
 		return "table"
 	case *EnvFunction:
+		return "function"
+	case *EnvBuiltin:
 		return "function"
 	}
 	return fmt.Sprintf("%T", val)
@@ -648,6 +777,42 @@ func (s *Server) handleHover(doc *Document, pos Position) *Hover {
 	}
 
 	return nil
+}
+
+// handleKernelExecute executes a snippet of Lua code in the document's kernel state.
+func (s *Server) handleKernelExecute(doc *Document, code string) *KernelExecuteResult {
+	if doc.Kernel == nil {
+		return &KernelExecuteResult{Error: "kernel not available"}
+	}
+	vals, err := doc.Kernel.ExecuteString(code)
+	if err != nil {
+		return &KernelExecuteResult{Error: err.Error()}
+	}
+	return &KernelExecuteResult{Values: vals}
+}
+
+// handleKernelValues returns runtime value info at the given byte offset.
+func (s *Server) handleKernelValues(doc *Document, offset int) *KernelValuesResult {
+	if doc.Kernel == nil {
+		return nil
+	}
+	val, ok := doc.Kernel.GetVariableValueAt(offset)
+	if !ok {
+		return nil
+	}
+	return &KernelValuesResult{
+		Kind:  getRuntimeKindName(val.Kind),
+		Value: val.Value,
+	}
+}
+
+// handleKernelHistory returns the execution history for the document's kernel.
+func (s *Server) handleKernelHistory(doc *Document) *ExecutionHistory {
+	if doc.Kernel == nil {
+		return nil
+	}
+	history := doc.Kernel.GetExecutionHistory()
+	return &history
 }
 
 // getRuntimeKindName converts ValueKind to string

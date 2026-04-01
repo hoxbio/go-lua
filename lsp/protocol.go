@@ -245,6 +245,7 @@ const (
 	CIKFunction = 3
 	CIKField    = 5
 	CIKVariable = 6
+	CIKClass    = 7
 	CIKKeyword  = 14
 	CIKSnippet  = 15
 )
@@ -390,3 +391,36 @@ const (
 	SeverityInformation = 3
 	SeverityHint        = 4
 )
+
+// ---------------------------------------------------------------------------
+// lua/kernel/* custom requests
+// ---------------------------------------------------------------------------
+
+// KernelExecuteParams are the params for lua/kernel/execute.
+type KernelExecuteParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Code         string                 `json:"code"`
+}
+
+// KernelExecuteResult is the result of lua/kernel/execute.
+type KernelExecuteResult struct {
+	Values []interface{} `json:"values"`
+	Error  string        `json:"error,omitempty"`
+}
+
+// KernelValuesParams are the params for lua/kernel/values.
+type KernelValuesParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Offset       int                    `json:"offset"`
+}
+
+// KernelValuesResult is the result of lua/kernel/values.
+type KernelValuesResult struct {
+	Kind  string      `json:"kind"`
+	Value interface{} `json:"value"`
+}
+
+// KernelHistoryParams are the params for lua/kernel/history.
+type KernelHistoryParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+}
