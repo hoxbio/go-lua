@@ -326,6 +326,9 @@ func TestBinaryCompletion(t *testing.T) {
 		t.Fatalf("failed to send initialize: %v", err)
 	}
 
+	// Consume initialize response
+	readJSONRPCResponse(stdout)
+
 	// Open document
 	openReq := map[string]interface{}{
 		"jsonrpc": "2.0",
@@ -447,6 +450,8 @@ func TestBinaryHover(t *testing.T) {
 		t.Fatalf("failed to send initialize: %v", err)
 	}
 
+	readJSONRPCResponse(stdout) // initialize response
+
 	// Open document
 	openReq := map[string]interface{}{
 		"jsonrpc": "2.0",
@@ -561,6 +566,8 @@ func TestBinarySignatureHelp(t *testing.T) {
 		t.Fatalf("failed to send initialize: %v", err)
 	}
 
+	readJSONRPCResponse(stdout) // initialize response
+
 	// Open document
 	openReq := map[string]interface{}{
 		"jsonrpc": "2.0",
@@ -570,7 +577,7 @@ func TestBinarySignatureHelp(t *testing.T) {
 				"uri":       "file:///test.lua",
 				"languageId": "lua",
 				"version":   1,
-				"text":       "local function greet(name) return 'hi' end\n",
+				"text":       "local function greet(name) return 'hi' end\ngreet(",
 			},
 		},
 	}
@@ -678,6 +685,8 @@ func TestBinaryDefinition(t *testing.T) {
 	if err := sendJSONRPCRequest(stdin, initReq); err != nil {
 		t.Fatalf("failed to send initialize: %v", err)
 	}
+
+	readJSONRPCResponse(stdout) // initialize response
 
 	// Open document
 	openReq := map[string]interface{}{
@@ -790,6 +799,8 @@ func TestBinaryFormatting(t *testing.T) {
 	if err := sendJSONRPCRequest(stdin, initReq); err != nil {
 		t.Fatalf("failed to send initialize: %v", err)
 	}
+
+	readJSONRPCResponse(stdout) // initialize response
 
 	// Open document with unformatted code
 	openReq := map[string]interface{}{
